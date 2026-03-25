@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+backend/cps_cs/
+instance/*.db
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+
+# Secrets
+.env
+.DS_Store
