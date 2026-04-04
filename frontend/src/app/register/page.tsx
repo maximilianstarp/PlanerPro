@@ -1,0 +1,80 @@
+"use client";
+import { useState } from 'react';
+import axios from '@/lib/axios'; 
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { UserPlus, AlertCircle, Loader2 } from 'lucide-react';
+
+export default function RegisterPage() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await axios.post(`/api/register`, { username, password });
+      router.push('/login?registered=true'); 
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Fehler bei der Registrierung.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 font-sans">
+      <div className="w-full max-w-md space-y-8 bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
+        
+        {error && (
+          <div className="absolute top-4 right-4 left-4 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-2xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+            <AlertCircle size={18} />
+            <span className="text-xs font-bold">{error}</span>
+          </div>
+        )}
+
+        <div className="text-center pt-4">
+          <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600">
+            <UserPlus size={32} />
+          </div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Konto erstellen</h1>
+          <p className="mt-2 text-slate-500 font-medium">Werde Teil von PlannerPro</p>
+        </div>
+
+        <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-3">
+            <input
+              type="text"
+              required
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium"
+              placeholder="Wunsch-Nutzername"
+              onChange={(e) => setUsername(e.target.value)}
+            />
+            <input
+              type="password"
+              required
+              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium"
+              placeholder="Sicheres Passwort"
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" size={20} /> : "REGISTRIEREN"}
+          </button>
+        </form>
+
+        <p className="text-center text-sm font-bold text-slate-400">
+          Bereits ein Konto? <Link href="/login" className="text-blue-600 hover:text-blue-700 ml-1">ZUM LOGIN</Link>
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -1,10 +1,11 @@
 # Python
 __pycache__/
 *.pyc
-backend/cps_cs/
+backend/venv/
+backend/instance/*.db
 instance/*.db
 
-# Node / React
+# Next.js
 frontend/node_modules/
 frontend/dist/
 
