@@ -1,0 +1,3 @@
+# Test / lint tooling. Not needed at runtime - kept out of the Docker image.
+-r requirements.txt
+pytest==9.1.1
