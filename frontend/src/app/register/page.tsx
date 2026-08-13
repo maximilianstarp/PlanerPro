@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
-import axios from '@/lib/axios'; 
+import { isAxiosError } from 'axios';
+import axios from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, AlertCircle, Loader2 } from 'lucide-react';
@@ -18,9 +19,10 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await axios.post(`/api/register`, { username, password });
-      router.push('/login?registered=true'); 
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Fehler bei der Registrierung.");
+      router.push('/login?registered=true');
+    } catch (err) {
+      const message = isAxiosError(err) ? err.response?.data?.error : undefined;
+      setError(message || "Fehler bei der Registrierung.");
     } finally {
       setLoading(false);
     }

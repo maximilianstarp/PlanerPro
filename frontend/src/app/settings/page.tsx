@@ -1,21 +1,22 @@
 "use client";
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import axios from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, LogOut, Trash2, User as UserIcon } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
 
   const handleDeleteAccount = async () => {
     if (confirm("Bist du sicher? Alle deine Projekte und Stundenpläne werden unwiderruflich gelöscht.")) {
       try {
         await axios.delete(`/api/delete-account`);
-        alert("Account gelöscht.");
         window.location.href = "/";
-      } catch (err) {
-        alert("Fehler beim Löschen.");
+      } catch {
+        showToast("Fehler beim Löschen.", "error");
       }
     }
   };

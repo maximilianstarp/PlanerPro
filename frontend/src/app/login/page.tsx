@@ -23,8 +23,8 @@ function LoginForm() {
     setLoading(true);
     try {
       await login({ username, password });
-      router.push('/projects'); 
-    } catch (err: any) {
+      router.push('/projects');
+    } catch {
       setError("Login fehlgeschlagen. Prüfe Nutzername und Passwort.");
     } finally {
       setLoading(false);

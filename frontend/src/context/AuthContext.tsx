@@ -1,10 +1,16 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from '@/lib/axios'; 
+import axios from '@/lib/axios';
+import type { AuthUser } from '@/types';
+
+interface LoginCredentials {
+  username: string;
+  password: string;
+}
 
 interface AuthContextType {
-  user: any;
-  login: (credentials: any) => Promise<void>;
+  user: AuthUser | null;
+  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -12,7 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -22,7 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = async (credentials: any) => {
+  const login = async (credentials: LoginCredentials) => {
     const res = await axios.post('/api/login', credentials);
     setUser(res.data.user);
   };

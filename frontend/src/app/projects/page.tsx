@@ -1,15 +1,18 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import axios from '@/lib/axios';
 import { Plus, FolderPlus, Calendar, ArrowRight, Trash2, LayoutGrid, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { ProjectSummary } from '@/types';
 
 export default function ProjectsPage() {
-  const { user, isLoading } = useAuth(); 
+  const { user, isLoading } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [newProjectName, setNewProjectName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
@@ -21,31 +24,31 @@ export default function ProjectsPage() {
   }, [user, isLoading, router]);
 
   // 2. Projekte vom Backend laden
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const res = await axios.get('/api/projects');
       setProjects(res.data);
-    } catch (err) {
-      console.error("Fehler beim Laden der Projekte", err);
+    } catch {
+      showToast("Fehler beim Laden der Projekte.", "error");
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     if (user) fetchProjects();
-  }, [user]);
+  }, [user, fetchProjects]);
 
   // 3. Neues Projekt erstellen
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
-    
+
     setIsCreating(true);
     try {
       await axios.post('/api/projects', { name: newProjectName });
       setNewProjectName('');
       fetchProjects();
-    } catch (err) {
-      alert("Fehler beim Erstellen des Projekts.");
+    } catch {
+      showToast("Fehler beim Erstellen des Projekts.", "error");
     } finally {
       setIsCreating(false);
     }
@@ -59,8 +62,8 @@ export default function ProjectsPage() {
       try {
         await axios.delete(`/api/projects/${id}`);
         fetchProjects();
-      } catch (err) {
-        alert("Fehler beim Löschen.");
+      } catch {
+        showToast("Fehler beim Löschen.", "error");
       }
     }
   };
