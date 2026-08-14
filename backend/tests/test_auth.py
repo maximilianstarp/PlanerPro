@@ -30,6 +30,16 @@ def test_register_duplicate_username_returns_400(client):
     assert "already taken" in res.get_json()["error"]
 
 
+def test_register_duplicate_username_with_short_password_reports_taken_not_short(client):
+    # A too-short password on an already-taken username must report the
+    # username conflict, not "password too short" -- otherwise fixing the
+    # password and retrying just reveals the real error one step too late.
+    client.post("/api/register", json={"username": "bob", "password": "supersecret1"})
+    res = client.post("/api/register", json={"username": "bob", "password": "short"})
+    assert res.status_code == 400
+    assert "already taken" in res.get_json()["error"]
+
+
 def test_login_success_sets_session(client):
     client.post("/api/register", json={"username": "bob", "password": "supersecret1"})
     res = client.post("/api/login", json={"username": "bob", "password": "supersecret1"})

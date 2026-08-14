@@ -284,11 +284,17 @@ def create_app(test_config: dict | None = None) -> Flask:
 
         username = data["username"].strip()
         password = data["password"]
-        if len(password) < 8:
-            return jsonify({"error": "Password must be at least 8 characters"}), 400
 
+        # Check username availability before password strength: otherwise a
+        # too-short password on an already-taken username reports "password
+        # too short" and hides the real, more fundamental problem. The user
+        # "fixes" the password, retries, and only then learns the username
+        # was taken all along.
         if User.query.filter_by(username=username).first():
             return jsonify({"error": "Username is already taken"}), 400
+
+        if len(password) < 8:
+            return jsonify({"error": "Password must be at least 8 characters"}), 400
 
         hashed_pw = generate_password_hash_custom(password)
         new_user = User(username=username, password_hash=hashed_pw)
