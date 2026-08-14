@@ -102,6 +102,18 @@ The SQLite database lives in `instance/` (bind-mounted into the backend containe
 data survives `docker compose down` / restarts. Schema changes are applied automatically
 on container start via `flask db upgrade` (see `backend/entrypoint.sh`).
 
+### Demo account
+
+A demo account is seeded for trying out the app without registering:
+
+| Username | Password   |
+| -------- | ---------- |
+| `demo`   | `demo1234` |
+
+It starts with no projects — add one from the UI to see the optimizer in action. (It's
+a regular account with no special privileges, just pre-created; feel free to register
+your own instead.)
+
 ### Environment variables
 
 See [`.env.example`](.env.example) for the full list with explanations. The important
