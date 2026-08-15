@@ -2,7 +2,7 @@
 // (matching the JSON shapes the Flask API sends/receives) rather than
 // classes, since nothing here carries behavior.
 
-export type Weekday = "Mo" | "Di" | "Mi" | "Do" | "Fr" | "Sa" | "So";
+export type Weekday = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
 
 export interface TimeSlot {
   day: Weekday;

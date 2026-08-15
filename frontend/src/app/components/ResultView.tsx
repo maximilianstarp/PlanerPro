@@ -11,13 +11,13 @@ interface ResultsViewProps {
   onBack: () => void;
 }
 
-const DAYS: Weekday[] = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+const DAYS: Weekday[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 8);
 const DEFAULT_COLOR = { bg: 'bg-blue-100', border: 'border-blue-600', text: 'text-blue-900' };
 
 export default function ResultsView({ plans, currentIdx, setIdx, onBack }: ResultsViewProps) {
   if (!plans || plans.length === 0) return (
-    <div className="p-10 text-center font-bold">Keine Pläne gefunden.</div>
+    <div className="p-10 text-center font-bold">No plans found.</div>
   );
 
   const currentPlan = plans[currentIdx];
@@ -84,7 +84,7 @@ export default function ResultsView({ plans, currentIdx, setIdx, onBack }: Resul
 
         <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
           <div className="grid grid-cols-6 border-b bg-slate-50/50">
-            <div className="p-4 text-slate-400 font-bold text-[10px] uppercase text-center border-r">Zeit</div>
+            <div className="p-4 text-slate-400 font-bold text-[10px] uppercase text-center border-r">Time</div>
             {DAYS.map(day => <div key={day} className="p-4 text-center font-black text-slate-700 border-r last:border-0">{day}</div>)}
           </div>
           <div className="relative grid grid-cols-6" style={{ height: '850px' }}>

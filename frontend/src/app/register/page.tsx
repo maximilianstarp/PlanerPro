@@ -22,7 +22,7 @@ export default function RegisterPage() {
       router.push('/login?registered=true');
     } catch (err) {
       const message = isAxiosError(err) ? err.response?.data?.error : undefined;
-      setError(message || "Fehler bei der Registrierung.");
+      setError(message || "Registration failed.");
     } finally {
       setLoading(false);
     }
@@ -43,8 +43,8 @@ export default function RegisterPage() {
           <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600">
             <UserPlus size={32} />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Konto erstellen</h1>
-          <p className="mt-2 text-slate-500 font-medium">Werde Teil von PlannerPro</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Create account</h1>
+          <p className="mt-2 text-slate-500 font-medium">Join PlannerPro</p>
         </div>
 
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
@@ -53,14 +53,14 @@ export default function RegisterPage() {
               type="text"
               required
               className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium"
-              placeholder="Wunsch-Nutzername"
+              placeholder="Desired username"
               onChange={(e) => setUsername(e.target.value)}
             />
             <input
               type="password"
               required
               className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium"
-              placeholder="Sicheres Passwort"
+              placeholder="Secure password"
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
@@ -69,12 +69,12 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : "REGISTRIEREN"}
+            {loading ? <Loader2 className="animate-spin" size={20} /> : "REGISTER"}
           </button>
         </form>
 
         <p className="text-center text-sm font-bold text-slate-400">
-          Bereits ein Konto? <Link href="/login" className="text-blue-600 hover:text-blue-700 ml-1">ZUM LOGIN</Link>
+          Already have an account? <Link href="/login" className="text-blue-600 hover:text-blue-700 ml-1">GO TO LOGIN</Link>
         </p>
       </div>
     </div>

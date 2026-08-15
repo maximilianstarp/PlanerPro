@@ -14,7 +14,7 @@ instance.interceptors.response.use(
                          window.location.pathname === '/';
 
       if (typeof window !== "undefined" && !isAuthPage) {
-        console.warn("Nicht eingeloggt. Umleitung zum Login...");
+        console.warn("Not logged in. Redirecting to login...");
         window.location.href = '/login';
       }
     }

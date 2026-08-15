@@ -16,20 +16,20 @@ export default function ProjectsPage() {
   const [newProjectName, setNewProjectName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  // 1. Auth-Guard: Wenn nicht eingeloggt, zurück zum Login
+  // 1. Auth guard: if not logged in, redirect to login
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
     }
   }, [user, isLoading, router]);
 
-  // 2. Projekte vom Backend laden
+  // 2. Load projects from the backend
   const fetchProjects = useCallback(async () => {
     try {
       const res = await axios.get('/api/projects');
       setProjects(res.data);
     } catch {
-      showToast("Fehler beim Laden der Projekte.", "error");
+      showToast("Failed to load projects.", "error");
     }
   }, [showToast]);
 
@@ -37,7 +37,7 @@ export default function ProjectsPage() {
     if (user) fetchProjects();
   }, [user, fetchProjects]);
 
-  // 3. Neues Projekt erstellen
+  // 3. Create a new project
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
@@ -48,27 +48,27 @@ export default function ProjectsPage() {
       setNewProjectName('');
       fetchProjects();
     } catch {
-      showToast("Fehler beim Erstellen des Projekts.", "error");
+      showToast("Failed to create project.", "error");
     } finally {
       setIsCreating(false);
     }
   };
 
-  // 4. Projekt löschen
+  // 4. Delete a project
   const deleteProject = async (id: number, e: React.MouseEvent) => {
-    e.preventDefault(); 
-    e.stopPropagation(); // Doppelte Sicherheit gegen Link-Auslösung
-    if (confirm("Dieses Projekt und alle enthaltenen Pläne löschen?")) {
+    e.preventDefault();
+    e.stopPropagation(); // Extra safety against triggering the link
+    if (confirm("Delete this project and all plans it contains?")) {
       try {
         await axios.delete(`/api/projects/${id}`);
         fetchProjects();
       } catch {
-        showToast("Fehler beim Löschen.", "error");
+        showToast("Failed to delete.", "error");
       }
     }
   };
 
-  // Während der Auth-Status geprüft wird, zeigen wir einen Spinner
+  // While the auth status is being checked, show a spinner
   if (isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -92,11 +92,11 @@ export default function ProjectsPage() {
 
         {/* Create Project Card */}
         <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200 mb-12">
-          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Neues Semester / Projekt</h2>
+          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">New semester / project</h2>
           <form onSubmit={handleCreateProject} className="flex flex-col md:flex-row gap-4">
-            <input 
-              type="text" 
-              placeholder="z.B. Sommersemester 2026"
+            <input
+              type="text"
+              placeholder="e.g. Summer Semester 2026"
               className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-4 outline-none focus:border-blue-500 focus:bg-white transition-all text-lg font-medium"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
@@ -106,7 +106,7 @@ export default function ProjectsPage() {
               disabled={isCreating || !newProjectName.trim()}
               className="bg-slate-900 hover:bg-blue-600 text-white px-10 py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all disabled:opacity-30 active:scale-95 shadow-lg shadow-slate-200"
             >
-              <Plus size={24} /> {isCreating ? 'Warten...' : 'Projekt erstellen'}
+              <Plus size={24} /> {isCreating ? 'Please wait...' : 'Create project'}
             </button>
           </form>
         </div>
@@ -116,8 +116,8 @@ export default function ProjectsPage() {
           {projects.length === 0 ? (
             <div className="col-span-full py-24 text-center border-4 border-dashed border-slate-200 rounded-[3rem] bg-white/50">
               <FolderPlus size={64} className="mx-auto text-slate-200 mb-6" />
-              <p className="text-slate-400 text-xl font-bold">Noch keine Projekte vorhanden.</p>
-              <p className="text-slate-400 mt-2">Lege oben dein erstes Semester-Projekt an!</p>
+              <p className="text-slate-400 text-xl font-bold">No projects yet.</p>
+              <p className="text-slate-400 mt-2">Create your first semester project above!</p>
             </div>
           ) : (
             projects.map((project) => (
@@ -130,7 +130,7 @@ export default function ProjectsPage() {
                     <button 
                       onClick={(e) => deleteProject(project.id, e)}
                       className="text-slate-200 hover:text-red-500 transition-colors p-2"
-                      title="Projekt löschen"
+                      title="Delete project"
                     >
                       <Trash2 size={20} />
                     </button>
@@ -140,11 +140,11 @@ export default function ProjectsPage() {
                     {project.name}
                   </h3>
                   <p className="text-sm font-bold text-slate-300 uppercase tracking-widest mb-8 flex-1">
-                    {new Date(project.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    {new Date(project.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </p>
 
                   <div className="flex items-center text-slate-900 font-black text-sm gap-2 group-hover:text-blue-600 transition-all">
-                    PROJEKT ÖFFNEN <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+                    OPEN PROJECT <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
                   </div>
                 </div>
               </Link>

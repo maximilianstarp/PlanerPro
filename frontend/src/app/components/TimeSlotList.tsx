@@ -3,7 +3,7 @@ import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import type { TimeSlot, Weekday } from '@/types';
 
-const DAYS: Weekday[] = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const DAYS: Weekday[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 interface TimeSlotListProps {
   title?: string;
@@ -64,10 +64,10 @@ export default function TimeSlotList({ title, icon, slots = [], onChange }: Time
         </div>
       ))}
       <button
-        onClick={() => onChange([...slots, { day: 'Mo', start: '08:00', end: '10:00' }])}
+        onClick={() => onChange([...slots, { day: 'Mon', start: '08:00', end: '10:00' }])}
         className="text-[10px] font-black text-blue-600 uppercase hover:text-blue-800 p-1 flex items-center gap-1"
       >
-        <Plus size={12} /> Termin hinzufügen
+        <Plus size={12} /> Add time slot
       </button>
     </div>
   );

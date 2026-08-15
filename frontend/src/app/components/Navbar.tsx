@@ -6,7 +6,7 @@ import { LogOut, Settings, LayoutGrid, User } from 'lucide-react';
 export default function Navbar() {
   const { user, logout } = useAuth();
 
-  // Wenn kein User da ist (z.B. auf der Login-Seite), zeigen wir keine Navbar
+  // If there is no user (e.g. on the login page), we don't show a navbar
   if (!user) return null;
 
   return (
@@ -25,7 +25,7 @@ export default function Navbar() {
         <div className="flex items-center gap-6">
           <Link href="/settings" className="text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-2 text-sm font-semibold">
             <Settings size={18} />
-            Einstellungen
+            Settings
           </Link>
           
           <button 
