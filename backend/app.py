@@ -47,7 +47,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 def to_minutes(day, time_str):
-    days = {"Mo": 0, "Di": 1, "Mi": 2, "Do": 3, "Fr": 4, "Sa": 5, "So": 6}
+    days = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
     try:
         t = datetime.strptime(time_str, "%H:%M")
         return days[day] * 24 * 60 + t.hour * 60 + t.minute
