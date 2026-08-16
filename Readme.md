@@ -98,9 +98,11 @@ docker compose up --build
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:5000
 
-The SQLite database lives in `instance/` (bind-mounted into the backend container), so
-data survives `docker compose down` / restarts. Schema changes are applied automatically
-on container start via `flask db upgrade` (see `backend/entrypoint.sh`).
+The SQLite database lives in the `instance-data` named Docker volume, mounted into the
+backend container at `/app/instance`, so data survives `docker compose down` / restarts
+(only `docker compose down -v` or `docker volume rm` removes it). Schema changes are
+applied automatically on container start via `flask db upgrade` (see
+`backend/entrypoint.sh`).
 
 ### Demo account
 
