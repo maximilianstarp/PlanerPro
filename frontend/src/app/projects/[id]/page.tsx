@@ -130,12 +130,12 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-10 pb-20">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-10 pb-20 transition-colors">
       <div className="max-w-6xl mx-auto">
 
         {/* Top Navigation Bar */}
         <div className="flex justify-between items-center mb-10">
-          <button onClick={() => router.push('/projects')} className="flex items-center gap-2 text-slate-400 font-bold hover:text-slate-800 transition group">
+          <button onClick={() => router.push('/projects')} className="flex items-center gap-2 text-slate-400 dark:text-slate-500 font-bold hover:text-slate-800 dark:hover:text-slate-200 transition group">
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> All projects
           </button>
 
@@ -145,8 +145,8 @@ export default function ProjectDetailPage() {
               disabled={isOptimizing || modules.length === 0}
               className={`flex items-center gap-3 px-8 py-3 rounded-2xl font-black transition-all shadow-lg active:scale-95 ${
                 isOptimizing
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-slate-900 text-white hover:bg-blue-600 shadow-blue-100'
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                : 'bg-slate-900 dark:bg-blue-600 text-white hover:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-100 dark:shadow-black/30'
               }`}
             >
               {isOptimizing ? (
@@ -161,17 +161,17 @@ export default function ProjectDetailPage() {
 
         <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
-            <h1 className="text-6xl font-black text-slate-900 tracking-tighter">{projectName}</h1>
+            <h1 className="text-6xl font-black text-slate-900 dark:text-slate-100 tracking-tighter">{projectName}</h1>
           </div>
-          <button onClick={addModule} className="bg-white border-2 border-slate-200 text-slate-700 px-6 py-4 rounded-2xl font-black flex items-center gap-2 hover:border-blue-500 hover:text-blue-500 transition-all shadow-sm">
+          <button onClick={addModule} className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-6 py-4 rounded-2xl font-black flex items-center gap-2 hover:border-blue-500 hover:text-blue-500 dark:hover:text-blue-400 transition-all shadow-sm">
             <Plus size={24} /> Add module
           </button>
         </header>
 
         <div className="space-y-8">
           {modules.map((mod) => (
-            <div key={mod.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden transition-all">
-              <div className="bg-slate-800 p-6 flex justify-between items-center">
+            <div key={mod.id} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all">
+              <div className="bg-slate-800 dark:bg-slate-950 p-6 flex justify-between items-center">
                 <input
                   className="bg-transparent text-white text-2xl font-bold outline-none border-b-2 border-transparent focus:border-blue-400 w-full transition-colors"
                   placeholder="Module name..."
@@ -185,7 +185,7 @@ export default function ProjectDetailPage() {
 
               <div className="p-8">
                 <div className="flex gap-3 mb-10 items-center">
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mr-2">Accent color:</span>
+                   <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mr-2">Accent color:</span>
                   {PRESET_COLORS.map(c => (
                     <button
                       key={c.name}
@@ -211,13 +211,13 @@ export default function ProjectDetailPage() {
                   />
 
                   <div className="space-y-5">
-                    <h3 className="font-bold flex items-center gap-2 text-slate-800 border-b pb-3 uppercase text-xs tracking-widest">
+                    <h3 className="font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200 border-b dark:border-slate-800 pb-3 uppercase text-xs tracking-widest">
                       <Clock size={18} className="text-emerald-500"/> Tutorial groups
                     </h3>
                     {(mod.tutorials || []).map((group: TimeSlot[], gIdx: number) => (
-                       <div key={gIdx} className="bg-slate-50 p-5 rounded-[1.5rem] border border-slate-200 relative group/tut">
+                       <div key={gIdx} className="bg-slate-50 dark:bg-slate-800 p-5 rounded-[1.5rem] border border-slate-200 dark:border-slate-700 relative group/tut">
                          <button
-                            className="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover/tut:opacity-100 transition"
+                            className="absolute top-3 right-3 text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover/tut:opacity-100 transition"
                             onClick={() => {
                               const newTuts = [...mod.tutorials];
                               newTuts.splice(gIdx, 1);
@@ -239,7 +239,7 @@ export default function ProjectDetailPage() {
                     ))}
                     <button
                       onClick={() => setModules(modules.map(m => m.id === mod.id ? {...m, tutorials: [...(m.tutorials || []), []]} : m))}
-                      className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold text-sm hover:border-blue-200 hover:bg-blue-50/30 hover:text-blue-500 transition-all"
+                      className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 dark:text-slate-500 font-bold text-sm hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 hover:text-blue-500 dark:hover:text-blue-400 transition-all"
                     >
                       + Add optional group
                     </button>
@@ -250,12 +250,12 @@ export default function ProjectDetailPage() {
           ))}
 
           {modules.length === 0 && (
-            <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-               <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                 <Plus className="text-slate-400" size={32} />
+            <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+               <div className="bg-slate-100 dark:bg-slate-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                 <Plus className="text-slate-400 dark:text-slate-500" size={32} />
                </div>
-               <p className="text-slate-400 font-bold">No modules added yet.</p>
-               <button onClick={addModule} className="mt-4 text-blue-600 font-black hover:underline">Create first module</button>
+               <p className="text-slate-400 dark:text-slate-500 font-bold">No modules added yet.</p>
+               <button onClick={addModule} className="mt-4 text-blue-600 dark:text-blue-400 font-black hover:underline">Create first module</button>
             </div>
           )}
         </div>

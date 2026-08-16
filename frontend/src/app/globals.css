@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Switch Tailwind's `dark:` variant from the `prefers-color-scheme` media
+   feature to a `.dark` class on <html>, so the theme is something we control
+   (and persist) instead of something that just follows the OS setting. See
+   ThemeContext for how the class gets set/persisted, and
+   docs/color-palette.md for the palette this maps to. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
@@ -10,4 +17,9 @@ body {
   background-color: var(--background-end-rgb);
   color: rgb(var(--foreground-rgb));
   min-height: 100vh;
+}
+
+.dark body {
+  --foreground-rgb: 248, 250, 252;
+  --background-end-rgb: 2, 6, 23;
 }

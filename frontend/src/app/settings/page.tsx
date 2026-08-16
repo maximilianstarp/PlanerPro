@@ -22,52 +22,52 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-10 transition-colors">
       <div className="max-w-2xl mx-auto">
 
         {/* back Button */}
         <button
           onClick={() => router.push('/projects')}
-          className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-800 transition mb-8 group"
+          className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-slate-200 transition mb-8 group"
         >
           <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
           Back to overview
         </button>
 
-        <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-10">Settings</h1>
+        <h1 className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tight mb-10">Settings</h1>
 
         <div className="space-y-6">
           {/* Account section */}
-          <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-4 mb-6">
-              <div className="bg-blue-100 p-3 rounded-2xl text-blue-600">
+              <div className="bg-blue-100 dark:bg-blue-950/50 p-3 rounded-2xl text-blue-600 dark:text-blue-400">
                 <UserIcon size={24} />
               </div>
-              <h2 className="text-xl font-bold text-slate-800">Profile</h2>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Profile</h2>
             </div>
 
             <div className="flex flex-col gap-1 mb-6">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logged in as</span>
-              <p className="text-lg font-bold text-slate-700">{user?.username || 'Loading...'}</p>
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Logged in as</span>
+              <p className="text-lg font-bold text-slate-700 dark:text-slate-300">{user?.username || 'Loading...'}</p>
             </div>
 
             <button
               onClick={logout}
-              className="flex items-center gap-2 bg-slate-100 text-slate-600 px-6 py-3 rounded-xl font-bold hover:bg-slate-200 transition"
+              className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-6 py-3 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition"
             >
               <LogOut size={18} /> Log out
             </button>
           </div>
 
           {/* Danger zone */}
-          <div className="bg-red-50/50 p-8 rounded-[2rem] border border-red-100 mt-12">
-            <h2 className="text-xl font-bold text-red-700 mb-2">Danger zone</h2>
-            <p className="text-red-600/70 text-sm mb-6">
+          <div className="bg-red-50/50 dark:bg-red-950/20 p-8 rounded-[2rem] border border-red-100 dark:border-red-900/50 mt-12">
+            <h2 className="text-xl font-bold text-red-700 dark:text-red-400 mb-2">Danger zone</h2>
+            <p className="text-red-600/70 dark:text-red-400/70 text-sm mb-6">
               Once you delete your account, all your data (projects, modules, and saved plans) will be permanently removed.
             </p>
             <button
               onClick={handleDeleteAccount}
-              className="flex items-center gap-2 bg-white text-red-600 border border-red-200 px-6 py-3 rounded-xl font-bold hover:bg-red-600 hover:text-white transition shadow-sm"
+              className="flex items-center gap-2 bg-white dark:bg-slate-900 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 px-6 py-3 rounded-xl font-bold hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white transition shadow-sm"
             >
               <Trash2 size={18} /> Permanently delete account
             </button>
