@@ -18,6 +18,14 @@ ENV FLASK_APP=app.py
 # so it survives container recreation.
 RUN mkdir -p instance
 
+# Don't run the app as root - a container compromise (e.g. via a future
+# dependency vuln) shouldn't hand over root inside the container for free.
+# Created before EXPOSE/ENTRYPOINT and owns everything under /app,
+# including instance/, so it can still write the SQLite file/migrations.
+RUN groupadd --system app && useradd --system --gid app --home /app app \
+    && chown -R app:app /app
+USER app
+
 EXPOSE 5000
 
 ENTRYPOINT ["./entrypoint.sh"]

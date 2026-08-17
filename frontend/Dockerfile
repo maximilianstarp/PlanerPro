@@ -19,12 +19,15 @@ WORKDIR /app
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# copy the build output and necessary files from the builder stage
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/next.config.ts ./ 
+# copy the build output and necessary files from the builder stage, owned
+# by the image's built-in unprivileged "node" user (uid 1000) instead of
+# root - `npm start` doesn't need root for anything here.
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/package.json ./package.json
+COPY --from=builder --chown=node:node /app/next.config.ts ./
+USER node
 
 # expose port
 EXPOSE 3000
