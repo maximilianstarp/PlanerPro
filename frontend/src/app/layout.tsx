@@ -1,10 +1,20 @@
 import './globals.css'
+import type { Metadata } from 'next'
 import Script from 'next/script'
 import { AuthProvider } from '@/context/AuthContext'
 import { ToastProvider } from '@/context/ToastContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import Navbar from '@/app/components/Navbar'
 import VerifyEmailBanner from '@/app/components/VerifyEmailBanner'
+
+// robots: { index: false } is a beta-phase choice (paired with
+// src/app/robots.ts) so search engines don't index the app before it's
+// ready for a public launch - remove/adjust both once out of beta.
+export const metadata: Metadata = {
+  title: 'PlannerPro',
+  description: 'Plan your university timetable - conflict-free, automatically.',
+  robots: { index: false, follow: false },
+};
 
 // Sets the .dark class on <html> before React hydrates/paints, based on the
 // persisted choice (localStorage) or, on a first visit, the OS preference.
