@@ -1,6 +1,5 @@
 from app import get_overlap_minutes, score_full_schedule, to_minutes
 
-
 # --- pure algorithm unit tests ---
 
 

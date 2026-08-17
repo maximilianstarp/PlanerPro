@@ -1,31 +1,30 @@
-import itertools
+import base64
+import hashlib
 import heapq
 import hmac
+import itertools
 import logging
 import os
 import re
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
-import hashlib
-import base64
-
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_login import (
-    LoginManager,
-    login_user,
-    logout_user,
-    login_required,
-    current_user,
-)
-from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_login import (
+    LoginManager,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
+from flask_migrate import Migrate
 
-from database import db, User, Project, SavedSchedule, VerificationCode
-from mail import send_email, MailError
+from database import Project, User, VerificationCode, db
+from mail import MailError, send_email
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +115,7 @@ def score_full_schedule(schedule):
             days_data[d]["active_time"] += duration
 
     total_gaps = 0
-    for day, data in days_data.items():
+    for _day, data in days_data.items():
         span = data["max"] - data["min"]
         gaps = span - data["active_time"]
         total_gaps += gaps
@@ -188,7 +187,7 @@ def _issue_code(user: User, purpose: str) -> str:
             user_id=user.id,
             purpose=purpose,
             code_hash=_hash_code(code),
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=CODE_TTL_MINUTES),
+            expires_at=datetime.now(UTC) + timedelta(minutes=CODE_TTL_MINUTES),
         )
     )
     db.session.commit()
@@ -201,7 +200,7 @@ def _consume_code(user: User, purpose: str, submitted) -> bool:
     if not isinstance(submitted, str) or not submitted.strip():
         return False
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     candidate = (
         VerificationCode.query.filter_by(user_id=user.id, purpose=purpose, consumed_at=None)
         .filter(VerificationCode.expires_at > now)
@@ -364,9 +363,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     Migrate(app, db)
 
     # In-memory storage means limits are per-process. That's fine as long as
-    # the app runs as a single gunicorn worker (see Dockerfile); switch to a
-    # Redis storage_uri before scaling out to multiple workers/instances.
-    app.config.setdefault("RATELIMIT_STORAGE_URI", "memory://")
+    # the app runs as a single gunicorn worker (see Dockerfile). Reads from
+    # the environment so ops can point it at Redis (e.g.
+    # "redis://redis:6379/0") before scaling out to multiple
+    # workers/instances, without a code change - see .env.example.
+    app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI") or "memory://")
     # Off by default under TESTING so the rest of the suite isn't slowed
     # down / made flaky by it; test_security.py opts back in explicitly.
     if "RATELIMIT_ENABLED" not in app.config:

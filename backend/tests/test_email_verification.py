@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from database import VerificationCode, db
 
@@ -64,7 +64,7 @@ def test_verify_email_expired_code_returns_400(app, client, register_and_login):
 
     with app.app_context():
         vc = VerificationCode.query.filter_by(purpose="verify_email").first()
-        vc.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        vc.expires_at = datetime.now(UTC) - timedelta(minutes=1)
         db.session.commit()
 
     res = client.post("/api/verify-email", json={"code": code})

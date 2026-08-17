@@ -25,7 +25,9 @@ def test_request_reset_for_unknown_email_still_returns_200_but_sends_nothing(app
     assert len(app.config.get("MAIL_OUTBOX", [])) == outbox_before
 
 
-def test_request_reset_response_does_not_reveal_whether_email_exists(app, client, register_and_login):
+def test_request_reset_response_does_not_reveal_whether_email_exists(
+    app, client, register_and_login
+):
     register_and_login(username="alice", email="alice@example.com")
     known = client.post("/api/password-reset/request", json={"email": "alice@example.com"})
     unknown = client.post("/api/password-reset/request", json={"email": "ghost@example.com"})

@@ -1,7 +1,8 @@
-from flask_sqlalchemy import SQLAlchemy
+from datetime import UTC, datetime
+
 from flask_login import UserMixin
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSONB
-from datetime import datetime, timezone
 
 db = SQLAlchemy()
 
@@ -15,7 +16,7 @@ JSONBlob = db.JSON().with_variant(JSONB, "postgresql")
 def _utcnow():
     # datetime.utcnow() is deprecated (naive, easy to misuse); this is its
     # timezone-aware replacement.
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class User(UserMixin, db.Model):

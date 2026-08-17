@@ -34,7 +34,9 @@ def send_email(app, to: str, subject: str, body: str) -> None:
         # No SMTP configured (e.g. local/dev without a mail provider) - log
         # the email instead of failing outright, so registration/
         # verification/reset all work out of the box with zero mail setup.
-        logger.info("SMTP not configured; email to %s not sent.\nSubject: %s\n%s", to, subject, body)
+        logger.info(
+            "SMTP not configured; email to %s not sent.\nSubject: %s\n%s", to, subject, body
+        )
         return
 
     msg = EmailMessage()
@@ -55,6 +57,6 @@ def send_email(app, to: str, subject: str, body: str) -> None:
             if username:
                 smtp.login(username, password or "")
             smtp.send_message(msg)
-    except (smtplib.SMTPException, OSError):
+    except (smtplib.SMTPException, OSError) as err:
         logger.exception("Failed to send email to %s", to)
-        raise MailError("Failed to send email")
+        raise MailError("Failed to send email") from err
