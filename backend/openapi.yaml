@@ -1,0 +1,562 @@
+openapi: 3.0.3
+info:
+  title: PlannerPro API
+  description: >
+    REST API for PlannerPro - a university timetable planner. Session-cookie
+    auth (Flask-Login); most endpoints require an authenticated session.
+    Hand-written to match backend/app.py - update alongside route changes.
+  version: "1.0"
+servers:
+  - url: http://localhost:5000
+    description: Local dev (docker compose)
+
+security:
+  - sessionCookie: []
+
+tags:
+  - name: health
+  - name: auth
+  - name: email-verification
+  - name: settings
+  - name: password-reset
+  - name: projects
+  - name: optimize
+
+paths:
+  /api/health:
+    get:
+      tags: [health]
+      summary: Liveness/readiness check
+      description: Checks DB connectivity. No auth required.
+      security: []
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+        "503":
+          description: Database unreachable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: error }
+                  database: { type: string, example: unreachable }
+
+  /api/register:
+    post:
+      tags: [auth]
+      summary: Create an account
+      description: >
+        Sends a 6-digit verification code to the given email (see
+        /api/verify-email). Rate limited: 10/min.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        "201": { $ref: "#/components/responses/Message" }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/login:
+    post:
+      tags: [auth]
+      summary: Log in (by email, not username)
+      description: "Not gated on email verification. Rate limited: 10/min."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/logout:
+    post:
+      tags: [auth]
+      summary: Log out, clearing the session
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /api/me:
+    get:
+      tags: [auth]
+      summary: Current user
+      security: []
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /api/verify-email:
+    post:
+      tags: [email-verification]
+      summary: Confirm the registration email with its code
+      description: "Rate limited: 10/min."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, example: "123456" }
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/resend-verification-email:
+    post:
+      tags: [email-verification]
+      summary: Send a new registration verification code
+      description: "No-op 200 if already verified. Rate limited: 3/min."
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/settings/username:
+    post:
+      tags: [settings]
+      summary: Change the current user's username
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username: { type: string }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /api/settings/password:
+    post:
+      tags: [settings]
+      summary: Change the current user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string }
+                new_password: { type: string, minLength: 8 }
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /api/settings/email:
+    post:
+      tags: [settings]
+      summary: Request an email change
+      description: >
+        Sends a verification code to `new_email`. The current email stays
+        active/authoritative until confirmed via
+        POST /api/settings/email/verify. Rate limited: 5/min.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_email, current_password]
+              properties:
+                new_email: { type: string, format: email }
+                current_password: { type: string }
+      responses:
+        "200":
+          description: Verification code sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/settings/email/verify:
+    post:
+      tags: [settings]
+      summary: Confirm a pending email change with its code
+      description: "Rate limited: 10/min."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        "200":
+          description: Email updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/settings/email/cancel:
+    post:
+      tags: [settings]
+      summary: Cancel a pending email change
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /api/password-reset/request:
+    post:
+      tags: [password-reset]
+      summary: Send a password-reset code
+      description: >
+        Always returns the same generic message whether or not the email
+        has an account (avoids account enumeration). No auth required.
+        Rate limited: 5/min.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/password-reset/confirm:
+    post:
+      tags: [password-reset]
+      summary: Reset the password with a reset code
+      description: >
+        Generic 400 on any failure (unknown email or wrong/expired code -
+        not distinguished). No auth required. Rate limited: 10/min.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, new_password]
+              properties:
+                email: { type: string, format: email }
+                code: { type: string }
+                new_password: { type: string, minLength: 8 }
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/projects:
+    get:
+      tags: [projects]
+      summary: List the current user's projects
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProjectSummary" }
+        "401": { $ref: "#/components/responses/Error" }
+    post:
+      tags: [projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /api/projects/{project_id}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [projects]
+      summary: Read a project's modules
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectDetail" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      tags: [projects]
+      summary: Save a project's modules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input_modules:
+                  type: array
+                  items: { $ref: "#/components/schemas/Module" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  updated_at: { type: string, format: date-time, nullable: true }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [projects]
+      summary: Delete a project
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /api/optimize:
+    post:
+      tags: [optimize]
+      summary: Run the optimizer over a set of modules
+      description: >
+        Brute-forces every valid tutorial/lab-group combination and returns
+        the top 15 by score. Rejects requests whose combinatorial search
+        space exceeds MAX_COMBINATIONS. Rate limited: 20/min (the only
+        CPU-heavy endpoint).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modules]
+              properties:
+                modules:
+                  type: array
+                  items: { $ref: "#/components/schemas/Module" }
+      responses:
+        "200":
+          description: Top-ranked schedules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: success }
+                  best_plans:
+                    type: array
+                    items: { $ref: "#/components/schemas/Plan" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/delete-account:
+    delete:
+      tags: [auth]
+      summary: Delete the current account and all its data
+      description: Cascades to the user's projects, saved schedules, and verification codes.
+      responses:
+        "200": { $ref: "#/components/responses/Message" }
+        "401": { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Flask-Login session cookie, set by POST /api/login.
+
+  responses:
+    Message:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string }
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+
+  schemas:
+    User:
+      type: object
+      properties:
+        username: { type: string }
+        email: { type: string, format: email }
+        email_verified: { type: boolean }
+        pending_email: { type: string, format: email, nullable: true }
+
+    ProjectSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+
+    ProjectDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        input_modules:
+          type: array
+          items: { $ref: "#/components/schemas/Module" }
+        updated_at: { type: string, format: date-time, nullable: true }
+
+    TimeSlot:
+      type: object
+      required: [day, start, end]
+      properties:
+        day:
+          type: string
+          enum: [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
+        start: { type: string, example: "10:00" }
+        end: { type: string, example: "11:30" }
+
+    Module:
+      type: object
+      description: One course - mandatory lecture/lab slots plus mutually-exclusive tutorial group options.
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        color:
+          type: object
+          additionalProperties: true
+        lectures:
+          type: array
+          items: { $ref: "#/components/schemas/TimeSlot" }
+        labs:
+          type: array
+          items: { $ref: "#/components/schemas/TimeSlot" }
+        tutorials:
+          type: array
+          description: Each inner array is one selectable tutorial group's slots.
+          items:
+            type: array
+            items: { $ref: "#/components/schemas/TimeSlot" }
+
+    ScheduledSlot:
+      allOf:
+        - $ref: "#/components/schemas/TimeSlot"
+        - type: object
+          properties:
+            name: { type: string }
+            color:
+              type: object
+              additionalProperties: true
+
+    Plan:
+      type: object
+      properties:
+        score: { type: number }
+        conflicts: { type: integer, description: Total minutes of overlapping classes. }
+        slots:
+          type: array
+          items: { $ref: "#/components/schemas/ScheduledSlot" }
