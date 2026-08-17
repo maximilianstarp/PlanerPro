@@ -4,6 +4,7 @@ import { AuthProvider } from '@/context/AuthContext'
 import { ToastProvider } from '@/context/ToastContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import Navbar from '@/app/components/Navbar'
+import VerifyEmailBanner from '@/app/components/VerifyEmailBanner'
 
 // Sets the .dark class on <html> before React hydrates/paints, based on the
 // persisted choice (localStorage) or, on a first visit, the OS preference.
@@ -23,7 +24,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <ToastProvider>
             <AuthProvider>
-              <Navbar /> {/* children*/}
+              <Navbar />
+              <VerifyEmailBanner />
               <main>
                 {children}
               </main>

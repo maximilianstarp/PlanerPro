@@ -8,7 +8,7 @@ import { LogIn, AlertCircle, CheckCircle2, Loader2, Moon, Sun } from 'lucide-rea
 
 // The actual form is split out into its own component so it can be wrapped in Suspense
 function LoginForm() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,13 +17,14 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const showSuccess = searchParams.get('registered');
+  const showResetSuccess = searchParams.get('reset');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login({ username, password });
+      await login({ email, password });
       router.push('/projects');
     } catch {
       setError("Login failed. Check your username and password.");
@@ -44,7 +45,14 @@ function LoginForm() {
       {showSuccess && !error && (
         <div className="absolute top-4 right-4 left-4 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 px-4 py-3 rounded-2xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
           <CheckCircle2 size={18} />
-          <span className="text-xs font-bold">Account ready! Log in now.</span>
+          <span className="text-xs font-bold">Account ready! Check your email for a verification code, then log in.</span>
+        </div>
+      )}
+
+      {showResetSuccess && !error && (
+        <div className="absolute top-4 right-4 left-4 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 px-4 py-3 rounded-2xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 size={18} />
+          <span className="text-xs font-bold">Password reset. Log in with your new password.</span>
         </div>
       )}
 
@@ -59,11 +67,11 @@ function LoginForm() {
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-3">
           <input
-            type="text"
+            type="email"
             required
             className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-50 dark:border-slate-800 rounded-2xl focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-            placeholder="Username"
-            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Email"
+            onChange={(e) => setEmail(e.target.value)}
           />
           <input
             type="password"
@@ -72,6 +80,11 @@ function LoginForm() {
             placeholder="Password"
             onChange={(e) => setPassword(e.target.value)}
           />
+        </div>
+        <div className="text-right">
+          <Link href="/forgot-password" className="text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            Forgot password?
+          </Link>
         </div>
         <button
           type="submit"

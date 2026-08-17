@@ -23,6 +23,7 @@ from app import create_app, generate_password_hash_custom  # noqa: E402
 from database import User, db  # noqa: E402
 
 DEMO_USERNAME = "demo"
+DEMO_EMAIL = "demo@planerpro.local"
 DEMO_PASSWORD = "demo1234"
 
 
@@ -33,8 +34,12 @@ def seed_demo_account():
             print(f"'{DEMO_USERNAME}' already exists, nothing to do.")
             return
 
+        # Pre-verified so the demo account never shows the "verify your
+        # email" nag - it's not a real inbox anyone can read a code from.
         user = User(
             username=DEMO_USERNAME,
+            email=DEMO_EMAIL,
+            email_verified=True,
             password_hash=generate_password_hash_custom(DEMO_PASSWORD),
         )
         db.session.add(user)

@@ -38,11 +38,14 @@ def client(app):
 
 @pytest.fixture()
 def register_and_login(client):
-    """Register a fresh user and log them in; returns (client, username)."""
+    """Register a fresh user and log them in; returns the username."""
 
-    def _do(username="alice", password="correct-horse-battery"):
-        client.post("/api/register", json={"username": username, "password": password})
-        res = client.post("/api/login", json={"username": username, "password": password})
+    def _do(username="alice", password="correct-horse-battery", email=None):
+        email = email or f"{username}@example.com"
+        client.post(
+            "/api/register", json={"username": username, "email": email, "password": password}
+        )
+        res = client.post("/api/login", json={"email": email, "password": password})
         assert res.status_code == 200
         return username
 

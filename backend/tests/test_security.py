@@ -34,11 +34,11 @@ def test_login_is_rate_limited(rate_limited_client):
     # touches the database.
     for _ in range(10):
         rate_limited_client.post(
-            "/api/login", json={"username": "nobody", "password": "wrong-password"}
+            "/api/login", json={"email": "nobody@example.com", "password": "wrong-password"}
         )
 
     res = rate_limited_client.post(
-        "/api/login", json={"username": "nobody", "password": "wrong-password"}
+        "/api/login", json={"email": "nobody@example.com", "password": "wrong-password"}
     )
     assert res.status_code == 429
 

@@ -29,7 +29,11 @@ shows you the best options — ranked, with conflicts and gaps highlighted.
   lightly penalizes idle gaps between classes on the same day, so the top result is
   both conflict-free (if possible) and reasonably compact.
 - **Multi-project support** — keep separate plans per semester, saved per account.
-- **Session-based auth** — register/login, projects are private to their owner.
+- **Session-based auth with email verification** — register with a username, email, and
+  password; confirm the email via a short-lived code. Login is by email + password.
+  Username, password, and email can all be changed later in Settings (an email change
+  re-verifies the new address and leaves the old one active until confirmed); a
+  code-based password reset is available for locked-out users.
 - **Offline-friendly editing** — drafts are cached in `localStorage` and reconciled
   against the server's last-saved timestamp, so an unsaved edit in one tab doesn't get
   silently overwritten by a newer save from another device.
@@ -80,7 +84,7 @@ domain to both containers — it's not part of the local dev setup.
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS               |
 | Backend  | Flask, Flask-SQLAlchemy, Flask-Login, Flask-Migrate, Flask-Limiter   |
 | Database | PostgreSQL (via `docker-compose.yml`'s `db` service; SQLite also works via `DATABASE_URL`) |
-| Auth     | Session cookies, bcrypt password hashing (SHA-256 pre-hashed)       |
+| Auth     | Session cookies, bcrypt password hashing (SHA-256 pre-hashed), email verification codes |
 | Testing  | pytest (backend), Jest + React Testing Library (frontend)           |
 | Infra    | Docker, docker-compose                                              |
 
@@ -108,11 +112,12 @@ same way.
 
 ### Demo account
 
-A demo account is available for trying out the app without registering:
+A demo account is available for trying out the app without registering. Login is by
+email, not username:
 
-| Username | Password   |
-| -------- | ---------- |
-| `demo`   | `demo1234` |
+| Email                  | Password   | Username |
+| ---------------------- | ---------- | -------- |
+| `demo@planerpro.local` | `demo1234` | `demo`   |
 
 It starts with no projects — add one from the UI to see the optimizer in action. (It's
 a regular account with no special privileges, just pre-created; feel free to register
@@ -121,6 +126,15 @@ your own instead.) On a fresh database (e.g. a new `db-data` volume), create it 
 ```bash
 docker compose exec backend python -m scripts.seed_demo
 ```
+
+### Email delivery
+
+Registration, email changes, and password reset all send a 6-digit verification code
+by email. Without SMTP configured, no email is actually sent — the code is written to
+the backend logs instead (`docker compose logs -f backend`, look for `SMTP not
+configured`), so the full flow still works end-to-end for local development with zero
+setup. To send real emails, set `SMTP_HOST`/`SMTP_PORT`/`SMTP_USERNAME`/`SMTP_PASSWORD`
+in `.env` (any standard SMTP provider works — see [`.env.example`](.env.example)).
 
 ### Environment variables
 
@@ -165,15 +179,24 @@ frontend/
 All endpoints are prefixed `/api` and use session-cookie auth (`@login_required` unless
 noted).
 
-| Method & path                | Description                                    |
-| ----------------------------- | ----------------------------------------------- |
-| `POST /register`              | Create an account                               |
-| `POST /login` / `POST /logout`| Session login/logout                            |
-| `GET /me`                     | Current user (no auth required)                 |
-| `GET/POST /projects`          | List / create projects                          |
-| `GET/PUT/DELETE /projects/:id`| Read, save modules, or delete a project         |
-| `POST /optimize`              | Run the optimizer over a set of modules         |
-| `DELETE /delete-account`      | Delete the current account and all its data     |
+| Method & path                     | Description                                        |
+| ---------------------------------- | ---------------------------------------------------- |
+| `POST /register`                   | Create an account (username, email, password)       |
+| `POST /login` / `POST /logout`     | Session login/logout (login is by email)             |
+| `GET /me`                          | Current user (no auth required)                      |
+| `POST /verify-email`               | Confirm the registration email with its code         |
+| `POST /resend-verification-email`  | Send a new registration verification code            |
+| `POST /settings/username`          | Change the current user's username                   |
+| `POST /settings/password`          | Change the current user's password                   |
+| `POST /settings/email`             | Request an email change (sends a code to the new address) |
+| `POST /settings/email/verify`      | Confirm a pending email change with its code          |
+| `POST /settings/email/cancel`      | Cancel a pending email change                         |
+| `POST /password-reset/request`     | Send a password-reset code (no auth required)         |
+| `POST /password-reset/confirm`     | Reset the password with that code (no auth required)  |
+| `GET/POST /projects`               | List / create projects                                |
+| `GET/PUT/DELETE /projects/:id`     | Read, save modules, or delete a project               |
+| `POST /optimize`                   | Run the optimizer over a set of modules               |
+| `DELETE /delete-account`           | Delete the current account and all its data           |
 
 ## Roadmap
 

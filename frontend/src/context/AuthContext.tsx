@@ -4,7 +4,7 @@ import axios from '@/lib/axios';
 import type { AuthUser } from '@/types';
 
 interface LoginCredentials {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -12,6 +12,7 @@ interface AuthContextType {
   user: AuthUser | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -20,6 +21,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const refreshUser = async () => {
+    try {
+      const res = await axios.get('/api/me');
+      setUser(res.data);
+    } catch {
+      setUser(null);
+    }
+  };
 
   useEffect(() => {
     axios.get('/api/me')
@@ -44,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, refreshUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

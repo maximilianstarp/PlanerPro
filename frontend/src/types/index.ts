@@ -57,4 +57,7 @@ export interface ProjectDetail {
 
 export interface AuthUser {
   username: string;
+  email: string;
+  email_verified: boolean;
+  pending_email: string | null;
 }

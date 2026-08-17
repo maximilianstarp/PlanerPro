@@ -1,8 +1,11 @@
 import itertools
 import heapq
+import hmac
 import logging
 import os
-from datetime import datetime
+import re
+import secrets
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import hashlib
@@ -21,7 +24,8 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from database import db, User, Project, SavedSchedule
+from database import db, User, Project, SavedSchedule, VerificationCode
+from mail import send_email, MailError
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +155,70 @@ def check_password_hash_custom(pw_hash: str, password: str) -> bool:
     return bcrypt.checkpw(password_to_verify, hash_bytes)
 
 
+# --- EMAIL VERIFICATION CODES ---
+#
+# One mechanism (VerificationCode, see database.py) backs registration
+# verification, settings email changes, and password reset - distinguished
+# by `purpose`. Codes are 6-digit, single-use, short-lived, and only ever
+# stored hashed (never in plaintext), same spirit as passwords.
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+CODE_TTL_MINUTES = 15
+
+
+def _valid_email(value) -> bool:
+    return isinstance(value, str) and bool(EMAIL_RE.match(value.strip()))
+
+
+def _hash_code(code: str) -> str:
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+def _issue_code(user: User, purpose: str) -> str:
+    """Invalidate any outstanding codes of this purpose for `user`, create a
+    fresh one, and return the plaintext code to embed in the email (only the
+    hash is persisted)."""
+    VerificationCode.query.filter_by(
+        user_id=user.id, purpose=purpose, consumed_at=None
+    ).delete()
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    db.session.add(
+        VerificationCode(
+            user_id=user.id,
+            purpose=purpose,
+            code_hash=_hash_code(code),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=CODE_TTL_MINUTES),
+        )
+    )
+    db.session.commit()
+    return code
+
+
+def _consume_code(user: User, purpose: str, submitted) -> bool:
+    """Check `submitted` against the newest unconsumed, unexpired code of
+    this purpose for `user`; mark it consumed and return True on a match."""
+    if not isinstance(submitted, str) or not submitted.strip():
+        return False
+
+    now = datetime.now(timezone.utc)
+    candidate = (
+        VerificationCode.query.filter_by(user_id=user.id, purpose=purpose, consumed_at=None)
+        .filter(VerificationCode.expires_at > now)
+        .order_by(VerificationCode.id.desc())
+        .first()
+    )
+    if candidate is None:
+        return False
+
+    if not hmac.compare_digest(candidate.code_hash, _hash_code(submitted.strip())):
+        return False
+
+    candidate.consumed_at = now
+    db.session.commit()
+    return True
+
+
 # --- INPUT VALIDATION ---
 
 
@@ -247,6 +315,15 @@ def create_app(test_config: dict | None = None) -> Flask:
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_PERMANENT=True,
         USE_X_SENDFILE=False,
+        # Outgoing mail (verification codes / password resets) - see
+        # mail.send_email(). All optional: with SMTP_HOST unset, emails are
+        # logged instead of sent, so this works locally with zero setup.
+        SMTP_HOST=os.getenv("SMTP_HOST") or None,
+        SMTP_PORT=int(os.getenv("SMTP_PORT", "587")),
+        SMTP_USERNAME=os.getenv("SMTP_USERNAME") or None,
+        SMTP_PASSWORD=os.getenv("SMTP_PASSWORD") or None,
+        SMTP_USE_TLS=_env_bool("SMTP_USE_TLS", True),
+        MAIL_FROM=os.getenv("MAIL_FROM", "PlannerPro <no-reply@planerpro.local>"),
     )
 
     if test_config:
@@ -323,6 +400,28 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     # --- AUTH ROUTES ---
 
+    def _user_json(user):
+        return {
+            "username": user.username,
+            "email": user.email,
+            "email_verified": user.email_verified,
+            "pending_email": user.pending_email,
+        }
+
+    def _send_code_email(user, purpose, to_email, subject, intro):
+        code = _issue_code(user, purpose)
+        try:
+            send_email(
+                app,
+                to_email,
+                subject,
+                f"{intro}\n\nYour verification code is: {code}\n\n"
+                f"This code expires in {CODE_TTL_MINUTES} minutes.",
+            )
+        except MailError:
+            return False
+        return True
+
     @app.route("/api/register", methods=["POST"])
     @limiter.limit("10 per minute")
     def register():
@@ -330,29 +429,48 @@ def create_app(test_config: dict | None = None) -> Flask:
         if data is None:
             return jsonify({"error": "Request body must be JSON"}), 400
 
-        error = require_fields(data, ["username", "password"])
+        error = require_fields(data, ["username", "email", "password"])
         if error:
             return jsonify({"error": error}), 400
 
         username = data["username"].strip()
+        email = data["email"].strip().lower()
         password = data["password"]
 
-        # Check username availability before password strength: otherwise a
-        # too-short password on an already-taken username reports "password
-        # too short" and hides the real, more fundamental problem. The user
-        # "fixes" the password, retries, and only then learns the username
-        # was taken all along.
+        # Check identity conflicts (username, then email) before password
+        # strength: otherwise a too-short password on an already-taken
+        # username/email reports "password too short" and hides the real,
+        # more fundamental problem. The user "fixes" the password, retries,
+        # and only then learns the username/email was taken all along.
         if User.query.filter_by(username=username).first():
             return jsonify({"error": "Username is already taken"}), 400
+
+        if not _valid_email(email):
+            return jsonify({"error": "Please enter a valid email address"}), 400
+
+        if User.query.filter_by(email=email).first():
+            return jsonify({"error": "An account with this email already exists"}), 400
 
         if len(password) < 8:
             return jsonify({"error": "Password must be at least 8 characters"}), 400
 
         hashed_pw = generate_password_hash_custom(password)
-        new_user = User(username=username, password_hash=hashed_pw)
+        new_user = User(
+            username=username, email=email, password_hash=hashed_pw, email_verified=False
+        )
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({"message": "Registration successful"}), 201
+
+        _send_code_email(
+            new_user,
+            "verify_email",
+            email,
+            "Verify your PlannerPro email",
+            "Welcome to PlannerPro! Please confirm your email address.",
+        )
+        return jsonify(
+            {"message": "Registration successful. Check your email for a verification code."}
+        ), 201
 
     @app.route("/api/login", methods=["POST"])
     @limiter.limit("10 per minute")
@@ -361,17 +479,15 @@ def create_app(test_config: dict | None = None) -> Flask:
         if data is None:
             return jsonify({"error": "Request body must be JSON"}), 400
 
-        error = require_fields(data, ["username", "password"])
+        error = require_fields(data, ["email", "password"])
         if error:
             return jsonify({"error": error}), 400
 
-        user = User.query.filter_by(username=data["username"].strip()).first()
+        user = User.query.filter_by(email=data["email"].strip().lower()).first()
 
         if user and check_password_hash_custom(user.password_hash, data["password"]):
             login_user(user, remember=True)
-            return jsonify(
-                {"message": "Login successful", "user": {"username": user.username}}
-            ), 200
+            return jsonify({"message": "Login successful", "user": _user_json(user)}), 200
 
         return jsonify({"error": "Invalid credentials"}), 401
 
@@ -384,8 +500,214 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.route("/api/me", methods=["GET"])
     def me():
         if current_user.is_authenticated:
-            return jsonify({"username": current_user.username}), 200
+            return jsonify(_user_json(current_user)), 200
         return jsonify({"error": "Not logged in"}), 401
+
+    # --- EMAIL VERIFICATION ---
+
+    @app.route("/api/verify-email", methods=["POST"])
+    @login_required
+    @limiter.limit("10 per minute")
+    def verify_email():
+        data = get_json_body()
+        if data is None:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        if current_user.email_verified:
+            return jsonify({"message": "Email already verified"}), 200
+
+        if not _consume_code(current_user, "verify_email", data.get("code")):
+            return jsonify({"error": "Invalid or expired code"}), 400
+
+        current_user.email_verified = True
+        db.session.commit()
+        return jsonify({"message": "Email verified"}), 200
+
+    @app.route("/api/resend-verification-email", methods=["POST"])
+    @login_required
+    @limiter.limit("3 per minute")
+    def resend_verification_email():
+        if current_user.email_verified:
+            return jsonify({"message": "Email already verified"}), 200
+
+        _send_code_email(
+            current_user,
+            "verify_email",
+            current_user.email,
+            "Verify your PlannerPro email",
+            "Here's a new verification code for your PlannerPro account.",
+        )
+        return jsonify({"message": "Verification code sent"}), 200
+
+    # --- ACCOUNT SETTINGS: profile ---
+
+    @app.route("/api/settings/username", methods=["POST"])
+    @login_required
+    def update_username():
+        data = get_json_body()
+        if data is None:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        error = require_fields(data, ["username"])
+        if error:
+            return jsonify({"error": error}), 400
+
+        username = data["username"].strip()
+        if User.query.filter(User.username == username, User.id != current_user.id).first():
+            return jsonify({"error": "Username is already taken"}), 400
+
+        current_user.username = username
+        db.session.commit()
+        return jsonify({"message": "Username updated", "user": _user_json(current_user)}), 200
+
+    @app.route("/api/settings/password", methods=["POST"])
+    @login_required
+    def update_password():
+        data = get_json_body()
+        if data is None:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        error = require_fields(data, ["current_password", "new_password"])
+        if error:
+            return jsonify({"error": error}), 400
+
+        if not check_password_hash_custom(current_user.password_hash, data["current_password"]):
+            return jsonify({"error": "Current password is incorrect"}), 400
+
+        new_password = data["new_password"]
+        if len(new_password) < 8:
+            return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+        current_user.password_hash = generate_password_hash_custom(new_password)
+        db.session.commit()
+        return jsonify({"message": "Password updated"}), 200
+
+    @app.route("/api/settings/email", methods=["POST"])
+    @login_required
+    @limiter.limit("5 per minute")
+    def request_email_change():
+        data = get_json_body()
+        if data is None:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        error = require_fields(data, ["new_email", "current_password"])
+        if error:
+            return jsonify({"error": error}), 400
+
+        if not check_password_hash_custom(current_user.password_hash, data["current_password"]):
+            return jsonify({"error": "Current password is incorrect"}), 400
+
+        new_email = data["new_email"].strip().lower()
+        if not _valid_email(new_email):
+            return jsonify({"error": "Please enter a valid email address"}), 400
+
+        if new_email == current_user.email:
+            return jsonify({"error": "That is already your current email"}), 400
+
+        if User.query.filter(User.email == new_email, User.id != current_user.id).first():
+            return jsonify({"error": "An account with this email already exists"}), 400
+
+        # The old email stays authoritative (current_user.email is untouched)
+        # until the code sent to the new address is confirmed below.
+        current_user.pending_email = new_email
+        db.session.commit()
+
+        _send_code_email(
+            current_user,
+            "change_email",
+            new_email,
+            "Confirm your new PlannerPro email",
+            "Please confirm this address to finish changing your PlannerPro email.",
+        )
+        return jsonify(
+            {
+                "message": "Verification code sent to the new email. "
+                "Your current email stays active until confirmed.",
+                "user": _user_json(current_user),
+            }
+        ), 200
+
+    @app.route("/api/settings/email/verify", methods=["POST"])
+    @login_required
+    @limiter.limit("10 per minute")
+    def confirm_email_change():
+        data = get_json_body()
+        if data is None:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        if not current_user.pending_email:
+            return jsonify({"error": "No pending email change"}), 400
+
+        if not _consume_code(current_user, "change_email", data.get("code")):
+            return jsonify({"error": "Invalid or expired code"}), 400
+
+        current_user.email = current_user.pending_email
+        current_user.pending_email = None
+        current_user.email_verified = True
+        db.session.commit()
+        return jsonify({"message": "Email updated", "user": _user_json(current_user)}), 200
+
+    @app.route("/api/settings/email/cancel", methods=["POST"])
+    @login_required
+    def cancel_email_change():
+        current_user.pending_email = None
+        db.session.commit()
+        return jsonify({"message": "Pending email change cancelled"}), 200
+
+    # --- PASSWORD RESET (no login required) ---
+
+    @app.route("/api/password-reset/request", methods=["POST"])
+    @limiter.limit("5 per minute")
+    def request_password_reset():
+        data = get_json_body()
+        if data is None:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        error = require_fields(data, ["email"])
+        if error:
+            return jsonify({"error": error}), 400
+
+        user = User.query.filter_by(email=data["email"].strip().lower()).first()
+        if user:
+            _send_code_email(
+                user,
+                "password_reset",
+                user.email,
+                "Reset your PlannerPro password",
+                "Use this code to reset your PlannerPro password. "
+                "If you didn't request this, you can ignore this email.",
+            )
+
+        # Always the same response, whether or not the email exists -
+        # otherwise this endpoint becomes an account-enumeration oracle.
+        return jsonify(
+            {"message": "If that email has an account, a reset code has been sent."}
+        ), 200
+
+    @app.route("/api/password-reset/confirm", methods=["POST"])
+    @limiter.limit("10 per minute")
+    def confirm_password_reset():
+        data = get_json_body()
+        if data is None:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        error = require_fields(data, ["email", "code", "new_password"])
+        if error:
+            return jsonify({"error": error}), 400
+
+        generic_error = jsonify({"error": "Invalid or expired code"}), 400
+
+        user = User.query.filter_by(email=data["email"].strip().lower()).first()
+        if not user or not _consume_code(user, "password_reset", data["code"]):
+            return generic_error
+
+        new_password = data["new_password"]
+        if len(new_password) < 8:
+            return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+        user.password_hash = generate_password_hash_custom(new_password)
+        db.session.commit()
+        return jsonify({"message": "Password reset. You can now log in."}), 200
 
     # --- PROJECT ROUTES ---
 

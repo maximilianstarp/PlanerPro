@@ -9,6 +9,7 @@ import { UserPlus, AlertCircle, Loader2, Moon, Sun } from 'lucide-react';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await axios.post(`/api/register`, { username, password });
+      await axios.post(`/api/register`, { username, email, password });
       router.push('/login?registered=true');
     } catch (err) {
       const message = isAxiosError(err) ? err.response?.data?.error : undefined;
@@ -65,6 +66,13 @@ export default function RegisterPage() {
               className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-50 dark:border-slate-800 rounded-2xl focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               placeholder="Desired username"
               onChange={(e) => setUsername(e.target.value)}
+            />
+            <input
+              type="email"
+              required
+              className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-50 dark:border-slate-800 rounded-2xl focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              placeholder="Email address"
+              onChange={(e) => setEmail(e.target.value)}
             />
             <input
               type="password"
