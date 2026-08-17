@@ -26,6 +26,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      # No curl in the python:3.11-slim base image - use the interpreter
+      # that's already there instead of adding a package just for this.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build: ./frontend

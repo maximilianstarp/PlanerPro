@@ -269,6 +269,20 @@ def create_app(test_config: dict | None = None) -> Flask:
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     )
 
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Only advertise HSTS once cookies are actually marked Secure - a
+        # host still being served over plain HTTP has no business telling
+        # browsers to force HTTPS for it (see SESSION_COOKIE_SECURE above).
+        if app.config.get("SESSION_COOKIE_SECURE"):
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=63072000; includeSubDomains"
+            )
+        return response
+
     db.init_app(app)
     Migrate(app, db)
 
@@ -295,6 +309,17 @@ def create_app(test_config: dict | None = None) -> Flask:
     if app.config.get("TESTING"):
         with app.app_context():
             db.create_all()
+
+    # --- HEALTH CHECK ---
+
+    @app.route("/api/health", methods=["GET"])
+    def health():
+        try:
+            db.session.execute(db.text("SELECT 1"))
+        except Exception:
+            logger.exception("Health check failed: database not reachable")
+            return jsonify({"status": "error", "database": "unreachable"}), 503
+        return jsonify({"status": "ok"}), 200
 
     # --- AUTH ROUTES ---
 
