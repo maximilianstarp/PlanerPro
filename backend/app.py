@@ -1,4 +1,5 @@
 import itertools
+import heapq
 import logging
 import os
 from datetime import datetime
@@ -30,6 +31,9 @@ logger = logging.getLogger(__name__)
 # tutorial groups each can blow up combinatorially. This cap keeps the
 # request bounded instead of letting the server hang / OOM on bad input.
 MAX_COMBINATIONS = 200_000
+
+# Number of top-scoring plans returned by /api/optimize.
+TOP_N = 15
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -76,19 +80,28 @@ def score_full_schedule(schedule):
     if not schedule:
         return -100000, 0
 
+    # Each slot's day/start/end is converted to minutes exactly once here and
+    # reused by both passes below (the O(n^2) conflict pass and the per-day
+    # gap analysis previously re-ran to_minutes/strptime from scratch in
+    # each one).
+    minutes = [
+        (slot["day"], to_minutes(slot["day"], slot["start"]), to_minutes(slot["day"], slot["end"]))
+        for slot in schedule
+    ]
+
     conflict_minutes = 0
-    for i in range(len(schedule)):
-        for j in range(i + 1, len(schedule)):
-            conflict_minutes += get_overlap_minutes(schedule[i], schedule[j])
+    for i in range(len(minutes)):
+        _, s1_start, s1_end = minutes[i]
+        for j in range(i + 1, len(minutes)):
+            _, s2_start, s2_end = minutes[j]
+            overlap = min(s1_end, s2_end) - max(s1_start, s2_start)
+            conflict_minutes += max(0, overlap)
 
     score = 100000
     score -= conflict_minutes * 5000  # conflicts should dominate the ranking
 
     days_data = {}
-    for slot in schedule:
-        d = slot["day"]
-        start = to_minutes(d, slot["start"])
-        end = to_minutes(d, slot["end"])
+    for d, start, end in minutes:
         duration = end - start
 
         if d not in days_data:
@@ -201,14 +214,28 @@ def create_app(test_config: dict | None = None) -> Flask:
         if origin.strip()
     ]
 
+    # A relative sqlite:/// URI is resolved by Flask-SQLAlchemy against
+    # app.instance_path (i.e. <root>/instance), which is exactly the
+    # directory docker-compose.yml mounts as a volume - so the default here
+    # already persists across container restarts without needing an
+    # "instance/" prefix (that would double up to instance/instance/).
+    database_uri = os.getenv("DATABASE_URL", "sqlite:///project.db")
+
+    # pool_pre_ping is safe/cheap on every dialect (pings a pooled
+    # connection before reuse, transparently reconnecting if it went
+    # stale). The rest (pool_size/max_overflow/pool_recycle) are
+    # QueuePool-specific kwargs that SQLite's default pool class doesn't
+    # accept, so they're only added for Postgres - pool_recycle in
+    # particular guards against a network/firewall silently dropping idle
+    # connections, which isn't a concern for a local SQLite file.
+    engine_options = {"pool_pre_ping": True}
+    if database_uri.startswith("postgresql"):
+        engine_options.update(pool_size=5, max_overflow=10, pool_recycle=1800)
+
     app.config.update(
         SECRET_KEY=secret_key,
-        # A relative sqlite:/// URI is resolved by Flask-SQLAlchemy against
-        # app.instance_path (i.e. <root>/instance), which is exactly the
-        # directory docker-compose.yml mounts as a volume - so the default
-        # here already persists across container restarts without needing
-        # an "instance/" prefix (that would double up to instance/instance/).
-        SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL", "sqlite:///project.db"),
+        SQLALCHEMY_DATABASE_URI=database_uri,
+        SQLALCHEMY_ENGINE_OPTIONS=engine_options,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         DEBUG=debug_mode,
         # Cookie hardening. SESSION_COOKIE_SECURE must be "true" once the app
@@ -421,6 +448,11 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.route("/api/optimize", methods=["POST"])
     @login_required
+    # The only CPU-heavy endpoint (up to MAX_COMBINATIONS schedules scored
+    # per request) - unlike the other routes, repeated calls are cheap to
+    # trigger from the UI (every "Generate plan" click) but expensive to
+    # serve, so it gets its own limit rather than relying on none at all.
+    @limiter.limit("20 per minute")
     def optimize():
         data = get_json_body()
         if data is None:
@@ -479,23 +511,30 @@ def create_app(test_config: dict | None = None) -> Flask:
                 }
             ), 400
 
-        # 3. Compute every combination and score it.
-        all_combinations = list(itertools.product(*module_options))
-
-        scored_plans = []
-        for combo in all_combinations:
+        # 3. Compute every combination, keeping only the best TOP_N via a
+        # fixed-size heap instead of materializing all (up to
+        # MAX_COMBINATIONS) combinations and fully sorting them just to keep
+        # the top 15 - peak memory stays O(TOP_N) instead of O(total
+        # combinations). Each heap entry is keyed on (score, -index, ...);
+        # index is unique per combination, so the key is a strict total
+        # order and ties are broken by generation order (earlier
+        # combination wins) - matching a stable full sort by score alone.
+        best_plans = []  # min-heap of (score, -index, conflicts, schedule)
+        for index, combo in enumerate(itertools.product(*module_options)):
             flat_schedule = [slot for module_choice in combo for slot in module_choice]
             score, conflicts = score_full_schedule(flat_schedule)
-            scored_plans.append(
-                {"score": score, "conflicts": conflicts, "schedule": flat_schedule}
-            )
+            entry = (score, -index, conflicts, flat_schedule)
+            if len(best_plans) < TOP_N:
+                heapq.heappush(best_plans, entry)
+            elif entry > best_plans[0]:
+                heapq.heapreplace(best_plans, entry)
 
-        # 4. Best first, return the top options.
-        scored_plans.sort(key=lambda x: x["score"], reverse=True)
+        # 4. Best first.
+        best_plans.sort(reverse=True)
 
         top_results = [
-            {"score": p["score"], "conflicts": p["conflicts"], "slots": p["schedule"]}
-            for p in scored_plans[:15]
+            {"score": score, "conflicts": conflicts, "slots": schedule}
+            for score, _, conflicts, schedule in best_plans
         ]
 
         return jsonify({"status": "success", "best_plans": top_results})

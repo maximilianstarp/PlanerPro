@@ -1,8 +1,15 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
 
 db = SQLAlchemy()
+
+# Plain db.JSON is stored as TEXT on SQLite and as the vanilla `json` type
+# on Postgres; with_variant upgrades it to `jsonb` on Postgres specifically
+# (more compact, faster to (de)serialize) while leaving the SQLite/test
+# behavior untouched.
+JSONBlob = db.JSON().with_variant(JSONB, "postgresql")
 
 
 def _utcnow():
@@ -35,9 +42,9 @@ class Project(db.Model):
     # The list of modules (lectures/labs/tutorial groups) the user entered,
     # stored as JSON rather than normalized tables since it's edited/read as
     # a single blob and never queried by its internal structure.
-    input_modules = db.Column(db.JSON, nullable=True)
+    input_modules = db.Column(JSONBlob, nullable=True)
 
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     # Deleting a project cascades to its saved/optimized schedules.
     results = db.relationship(
@@ -48,8 +55,8 @@ class Project(db.Model):
 class SavedSchedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # The optimizer's output (winning combination of slots) as JSON.
-    optimized_data = db.Column(db.JSON, nullable=False)
+    optimized_data = db.Column(JSONBlob, nullable=False)
     score = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=_utcnow)
 
-    project_id = db.Column(db.Integer, db.ForeignKey("project.id"), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey("project.id"), nullable=False, index=True)

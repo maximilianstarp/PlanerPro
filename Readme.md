@@ -65,7 +65,7 @@ graph LR
     Nginx --> FE["Next.js frontend<br/>:3000"]
     Nginx --> BE["Flask API<br/>:5000"]
     FE -->|"REST + session cookie"| BE
-    BE --> DB[("SQLite<br/>(instance/project.db)")]
+    BE --> DB[("PostgreSQL<br/>(db-data volume)")]
 ```
 
 Locally (and in the current single-server deployment), the frontend and backend run as
@@ -79,7 +79,7 @@ domain to both containers — it's not part of the local dev setup.
 | -------- | ------------------------------------------------------------------- |
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS               |
 | Backend  | Flask, Flask-SQLAlchemy, Flask-Login, Flask-Migrate, Flask-Limiter   |
-| Database | SQLite (file-based, swappable for Postgres via `DATABASE_URL`)      |
+| Database | PostgreSQL (via `docker-compose.yml`'s `db` service; SQLite also works via `DATABASE_URL`) |
 | Auth     | Session cookies, bcrypt password hashing (SHA-256 pre-hashed)       |
 | Testing  | pytest (backend), Jest + React Testing Library (frontend)           |
 | Infra    | Docker, docker-compose                                              |
@@ -98,15 +98,17 @@ docker compose up --build
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:5000
 
-The SQLite database lives in the `instance-data` named Docker volume, mounted into the
-backend container at `/app/instance`, so data survives `docker compose down` / restarts
-(only `docker compose down -v` or `docker volume rm` removes it). Schema changes are
-applied automatically on container start via `flask db upgrade` (see
-`backend/entrypoint.sh`).
+The Postgres database lives in the `db-data` named Docker volume, so data survives
+`docker compose down` / restarts (only `docker compose down -v` or `docker volume rm`
+removes it). Schema changes are applied automatically on container start via
+`flask db upgrade` (see `backend/entrypoint.sh`); `backend` waits for `db`'s healthcheck
+before starting. Prefer SQLite instead (e.g. for running the backend outside Docker)?
+Set `DATABASE_URL=sqlite:///project.db` — it's stored in the `instance-data` volume the
+same way.
 
 ### Demo account
 
-A demo account is seeded for trying out the app without registering:
+A demo account is available for trying out the app without registering:
 
 | Username | Password   |
 | -------- | ---------- |
@@ -114,7 +116,11 @@ A demo account is seeded for trying out the app without registering:
 
 It starts with no projects — add one from the UI to see the optimizer in action. (It's
 a regular account with no special privileges, just pre-created; feel free to register
-your own instead.)
+your own instead.) On a fresh database (e.g. a new `db-data` volume), create it with:
+
+```bash
+docker compose exec backend python -m scripts.seed_demo
+```
 
 ### Environment variables
 
@@ -144,6 +150,7 @@ backend/
   app.py              # App factory, routes, the optimizer algorithm
   database.py          # SQLAlchemy models
   migrations/          # Alembic schema migrations
+  scripts/              # One-off maintenance scripts (e.g. seed_demo.py)
   tests/                # pytest suite
 frontend/
   src/app/              # Next.js pages (App Router)
@@ -175,8 +182,9 @@ Things I'm deliberately deferring rather than treating as finished:
 - [ ] GitHub Actions workflow to auto-deploy `main` to the production server
 - [ ] Production nginx config + TLS (Let's Encrypt) in front of the containers
 - [ ] OpenAPI/Swagger documentation for the API
-- [ ] Postgres option for multi-instance deployments (current rate limiter/SQLite
-      assume a single backend process)
+- [ ] Redis-backed rate limiter storage, so the backend can run more than one
+      gunicorn worker/instance (the current in-memory limiter assumes a single
+      process — see `CLAUDE.md`)
 - [ ] Smarter-than-brute-force optimization (branch-and-bound / pruning) if the
       combination cap turns out to be too limiting in practice
 

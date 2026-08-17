@@ -7,6 +7,16 @@ Create Date: 2026-08-13 22:24:19.746705
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# input_modules/optimized_data are stored as opaque JSON blobs (see
+# database.py) - jsonb is the better default on Postgres (more compact,
+# faster to (de)serialize) with no downside for this access pattern, while
+# SQLite keeps using plain JSON since it doesn't have a jsonb type. This
+# only affects databases that run this migration fresh (i.e. new Postgres
+# instances); it doesn't retroactively alter columns on databases that
+# already applied this revision against SQLite.
+JSON_VARIANT = sa.JSON().with_variant(postgresql.JSONB(), "postgresql")
 
 
 # revision identifiers, used by Alembic.
@@ -30,14 +40,14 @@ def upgrade():
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.Column('input_modules', sa.JSON(), nullable=True),
+    sa.Column('input_modules', JSON_VARIANT, nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('saved_schedule',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('optimized_data', sa.JSON(), nullable=False),
+    sa.Column('optimized_data', JSON_VARIANT, nullable=False),
     sa.Column('score', sa.Float(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('project_id', sa.Integer(), nullable=False),
