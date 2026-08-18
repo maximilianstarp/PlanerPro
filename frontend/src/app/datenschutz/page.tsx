@@ -22,15 +22,15 @@ export default function DatenschutzPage() {
         </h1>
 
         {/* Not legal advice - the sections describing what data PlannerPro
-            actually processes are accurate to the current codebase, but the
-            operator-identifying fields below are placeholders and this
-            hasn't been legally reviewed. */}
+            actually processes are accurate to the current codebase, but this
+            hasn't been legally reviewed. Hosting/mail-provider fields below
+            stay open until an actual server/SMTP provider is chosen. */}
         <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-400 px-5 py-4 rounded-2xl mb-8 text-sm font-semibold">
           <AlertTriangle size={20} className="shrink-0 mt-0.5" />
           <span>
-            Platzhalter-Seite - Betreiberangaben und Hosting/Versand-Dienstleister noch nicht
-            ausgefüllt. Vor dem Beta-Launch vervollständigen (und im Zweifel rechtlich prüfen
-            lassen).
+            Hosting- und E-Mail-Versand-Angaben (Abschnitt 4) folgen, sobald ein produktiver
+            Server bzw. E-Mail-Versand eingerichtet ist. Bis dahin läuft die App in der
+            Entwicklung/Beta ohne externen Hosting- oder Mail-Anbieter.
           </span>
         </div>
 
@@ -40,11 +40,11 @@ export default function DatenschutzPage() {
               1. Verantwortlicher
             </h2>
             <p>
-              [Name / Firma]
+              Maximilian Starp
               <br />
-              [Straße Hausnummer, PLZ Ort]
+              Robert-Havemann-Straße 3, 53121 Bonn
               <br />
-              E-Mail: [kontakt@example.com]
+              E-Mail: maximilian@starp.email
             </p>
           </section>
 
@@ -92,12 +92,15 @@ export default function DatenschutzPage() {
               4. Empfänger / Dritte
             </h2>
             <p className="mb-2">
-              Hosting: [Hosting-Provider eintragen].
+              Hosting: [wird ergänzt, sobald ein Hosting-Anbieter für den produktiven Betrieb
+              feststeht].
             </p>
             <p>
-              E-Mail-Versand (Verifizierungscodes, Passwort-Reset): [SMTP-/E-Mail-Provider
-              eintragen, sobald konfiguriert]. Eine Weitergabe an sonstige Dritte findet nicht
-              statt.
+              E-Mail-Versand (Verifizierungscodes, Passwort-Reset): Aktuell wird kein externer
+              E-Mail-Anbieter genutzt - Codes werden ausschließlich im Server-Log ausgegeben
+              statt versendet. Sobald ein SMTP-/E-Mail-Anbieter für den produktiven Betrieb
+              eingerichtet ist, wird er hier ergänzt. Eine Weitergabe an sonstige Dritte findet
+              nicht statt.
             </p>
           </section>
 
@@ -143,8 +146,8 @@ export default function DatenschutzPage() {
             </h2>
             <p>
               Passwörter werden nie im Klartext gespeichert (SHA-256-vorgehashed, dann bcrypt).
-              [Sobald TLS/HTTPS aktiv ist, hier ergänzen: &bdquo;Die Übertragung erfolgt
-              verschlüsselt über TLS.&ldquo;]
+              [Sobald TLS/HTTPS für den produktiven Betrieb aktiv ist, hier ergänzen:
+              &bdquo;Die Übertragung erfolgt verschlüsselt über TLS.&ldquo;]
             </p>
           </section>
 
@@ -154,7 +157,8 @@ export default function DatenschutzPage() {
             </h2>
             <p>
               Diese Datenschutzerklärung wird bei Änderungen an der Datenverarbeitung
-              entsprechend angepasst. Stand: [Datum].
+              entsprechend angepasst - insbesondere sobald Hosting- und E-Mail-Anbieter für den
+              produktiven Betrieb feststehen (siehe Hinweis oben). Stand: 18.08.2026.
             </p>
           </section>
         </div>
