@@ -16,3 +16,12 @@ frontend/dist/
 
 # Claude Code
 CLAUDE.md
+
+# Ops runbook with server-specific operational detail (server layout, deploy
+# mechanics) - kept locally in docs/, not meant for the public repo. See
+# CLAUDE.md's own treatment above for the established precedent.
+docs/deploy-plan.md
+
+# Local-only port-binding override for docker-compose.yml (see
+# docs/deploy-plan.md) - each server creates its own, never committed.
+docker-compose.override.yml

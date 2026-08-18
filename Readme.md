@@ -4,6 +4,7 @@ A university timetable planner that computes every possible combination of lectu
 lab sessions, and tutorial groups, and ranks them by schedule quality — instead of you
 manually checking dozens of tutorial-group combinations for time conflicts.
 
+![CI](https://github.com/maximilianstarp/PlanerPro/actions/workflows/ci.yml/badge.svg)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/flask-3.1-black?logo=flask&logoColor=white)
@@ -37,6 +38,11 @@ shows you the best options — ranked, with conflicts and gaps highlighted.
 - **Offline-friendly editing** — drafts are cached in `localStorage` and reconciled
   against the server's last-saved timestamp, so an unsaved edit in one tab doesn't get
   silently overwritten by a newer save from another device.
+
+Legally required pages for the German operator (Impressum/Datenschutz) live at
+`/impressum` and `/datenschutz`, linked from the footer on every page. The app is
+currently in beta and blocks search-engine indexing (`robots.txt` + a `noindex` meta
+tag) until it's ready for a public launch.
 
 ## How the optimizer works
 
@@ -72,10 +78,15 @@ graph LR
     BE --> DB[("PostgreSQL<br/>(db-data volume)")]
 ```
 
-Locally (and in the current single-server deployment), the frontend and backend run as
-two containers via `docker-compose.yml`, each reachable directly on its own port. The
-nginx layer is a production-only addition that terminates TLS and routes a single public
-domain to both containers — it's not part of the local dev setup.
+Locally, the frontend and backend run as two containers via `docker-compose.yml`, each
+reachable directly on its own port — nginx isn't part of the local dev setup. In
+production, both containers instead bind to `127.0.0.1` only (via a local, untracked
+`docker-compose.override.yml`) and a host-level nginx terminates TLS and reverse-proxies
+a single public domain to both (`/api/*` → backend, everything else → frontend — same
+origin, so no CORS is needed). The full deploy runbook (server setup, the nginx config,
+the auto-deploy mechanism) lives in `docs/deploy-plan.md`, which is intentionally
+gitignored rather than committed (same treatment as `CLAUDE.md` — operational detail,
+not part of the public repo).
 
 ## Tech stack
 
@@ -86,7 +97,7 @@ domain to both containers — it's not part of the local dev setup.
 | Database | PostgreSQL (via `docker-compose.yml`'s `db` service; SQLite also works via `DATABASE_URL`) |
 | Auth     | Session cookies, bcrypt password hashing (SHA-256 pre-hashed), email verification codes |
 | Testing  | pytest (backend), Jest + React Testing Library (frontend)           |
-| Infra    | Docker, docker-compose                                              |
+| Infra    | Docker (non-root containers), docker-compose, GitHub Actions (CI)   |
 
 ## Getting started
 
@@ -177,10 +188,12 @@ frontend/
 ## API overview
 
 All endpoints are prefixed `/api` and use session-cookie auth (`@login_required` unless
-noted).
+noted). Full request/response shapes: [`backend/openapi.yaml`](backend/openapi.yaml)
+(OpenAPI 3.0).
 
 | Method & path                     | Description                                        |
 | ---------------------------------- | ---------------------------------------------------- |
+| `GET /health`                      | Liveness/readiness check (no auth required)          |
 | `POST /register`                   | Create an account (username, email, password)       |
 | `POST /login` / `POST /logout`     | Session login/logout (login is by email)             |
 | `GET /me`                          | Current user (no auth required)                      |
@@ -202,12 +215,22 @@ noted).
 
 Things I'm deliberately deferring rather than treating as finished:
 
-- [ ] GitHub Actions workflow to auto-deploy `main` to the production server
-- [ ] Production nginx config + TLS (Let's Encrypt) in front of the containers
-- [ ] OpenAPI/Swagger documentation for the API
-- [ ] Redis-backed rate limiter storage, so the backend can run more than one
-      gunicorn worker/instance (the current in-memory limiter assumes a single
-      process — see `CLAUDE.md`)
+- [x] CI (tests + lint on every push/PR — `.github/workflows/ci.yml`)
+- [x] OpenAPI/Swagger documentation for the API (`backend/openapi.yaml`)
+- [ ] Auto-deploy `main` to the production server — runbook is ready
+      (`docs/deploy-plan.md`: a self-pull systemd timer on the server, not a GitHub
+      Actions push-deploy, so no inbound webhook/secrets needed), execution on the
+      actual server is pending
+- [ ] Production nginx config + TLS (Let's Encrypt) — likewise documented in
+      `docs/deploy-plan.md` and pending execution, not committed as repo config since
+      it's server-specific
+- [ ] Real SMTP provider wired up for production (currently logs verification/reset
+      codes instead of emailing them — see `.env.example`)
+- [ ] Fill in the Datenschutzerklärung's hosting/mail-provider section once those are
+      chosen (`frontend/src/app/datenschutz/page.tsx`)
+- [ ] Point `RATELIMIT_STORAGE_URI` at Redis (env-configurable already, see
+      `.env.example`) once running more than one gunicorn worker/instance — the
+      current in-memory limiter assumes a single process, see `CLAUDE.md`
 - [ ] Smarter-than-brute-force optimization (branch-and-bound / pruning) if the
       combination cap turns out to be too limiting in practice
 
