@@ -9,6 +9,12 @@ RUN npm install
 # copy the code
 COPY . .
 
+# Next.js inlines NEXT_PUBLIC_* env vars into the JS bundle at build time -
+# passed in as a build arg (see docker-compose.yml) rather than relying on
+# a runtime env var, which `next build` would never see.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # run the build
 RUN npm run build
 

@@ -42,7 +42,16 @@ services:
       start_period: 10s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      # Next.js inlines NEXT_PUBLIC_* vars at build time, not runtime - the
+      # env_file below has no effect on it (that's only visible to the
+      # running container, after the JS bundle is already baked). Must be
+      # passed as a build arg instead, read from .env like everything else
+      # (defaults to the local-dev backend if unset, same as the code's own
+      # fallback in src/lib/axios.tsx).
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
     ports:
       - "3000:3000"
     env_file:
