@@ -6,6 +6,7 @@ import { ToastProvider } from '@/context/ToastContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import Navbar from '@/app/components/Navbar'
 import VerifyEmailBanner from '@/app/components/VerifyEmailBanner'
+import Footer from '@/app/components/Footer'
 
 // robots: { index: false } is a beta-phase choice (paired with
 // src/app/robots.ts) so search engines don't index the app before it's
@@ -27,7 +28,7 @@ const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('theme');i
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors" suppressHydrationWarning>
+      <body className="bg-slate-50 dark:bg-slate-950 min-h-screen flex flex-col transition-colors" suppressHydrationWarning>
         <Script id="theme-init" strategy="beforeInteractive">
           {THEME_INIT_SCRIPT}
         </Script>
@@ -36,9 +37,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AuthProvider>
               <Navbar />
               <VerifyEmailBanner />
-              <main>
+              <main className="flex-1">
                 {children}
               </main>
+              <Footer />
             </AuthProvider>
           </ToastProvider>
         </ThemeProvider>
